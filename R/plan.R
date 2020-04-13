@@ -1,6 +1,6 @@
 plan <- drake_plan(
-  data_in = data_check(file_in("correctDataGENFI.csv")),
-  protein_info_in = protein_info_check(file_in("correctProteinInfoGENFI.csv"), data_in),
+  data_in = data_check(file_in("path/to/csvfile")),
+  protein_info_in = protein_info_check(file_in("path/to/csvfile"), data_in),
   wilcox_results = wilcox_test(data_in, protein_info_in),
   fold_change_results = fold_change(data_in, protein_info_in),
   plot_results = volcano_plot(wilcox_results, fold_change_results),
