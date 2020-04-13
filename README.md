@@ -12,3 +12,35 @@ The selected proteins are analysed by:
 - Gene ontology term enrichment analysis
 - Pathway enrichment analysis
 - Disease ontology enrichment analysis
+
+## Data requirements
+
+The pipeline requires two input files in csv-format.
+1. The **proteomics data set** contains the protein measurements. The first column must contain a unique sample identifier. The second column has to contain the label used for classification (e.g. "healthy" and "affected"). Only two different labels are allowed and the class of effect (e.g. with treatment/mutation/symptoms) should be listed first if the column is converted into a factor, i.e. the class of effect should be first alphabetically, to allow for the correct baseline for the fold change calculations.
+2. The **protein information data set** should contain two columns. The first column will contain a unique description of all proteins/targets measured. The second column will contain the associated gene name of the target. For every target used in the proteomics data set (column names), there should be an entry in the first column of the protein information data set. Duplicated gene names are allowed.
+
+Are any of the requirments not met, it will lead to the termination of the pipeline before any analysis steps.
+
+## Set up
+
+1. Download the all files of the repository.
+2. Move the two required csv files into the same directory.
+3. Edit plan.R by replacing "path/to/csvfile" with the file name of the two csv files in data_in and protein_info_in respectively.
+4. Set the directory containing the repository files as your working directory.
+5. Run the following code
+```
+install.packages("drake")
+library(drake)
+new_cache()
+```
+Your directory should have the following structure now:
+- .drake 
+- R
+  - functions.R
+  - packages.R 
+  - plan.R
+- make.R
+- Report.Rmd
+- your_proteomics_dataset.csv
+- your_protein_information_dataset.csv
+6. Execute make.R to run the pipeline analysis.
