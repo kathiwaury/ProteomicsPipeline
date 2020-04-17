@@ -1,7 +1,7 @@
 # packages.R
 
 #install missing packages from CRAN
-packagesList <- c("drake", "dplyr", "reader", "DT", "ggplot2", "kableExtra", "knitr", 
+packagesList <- c("drake", "dplyr", "reader", "DT", "ggplot2", "plotly", "kableExtra", "knitr", 
   "caret", "randomForest", "BiocManager")
 newPackages <- packagesList[!(packagesList %in% installed.packages()[,"Package"])]
 if(length(newPackages) > 0) {
@@ -25,6 +25,7 @@ library(DT)
 library(ggplot2)
 library(kableExtra)
 library(knitr)
+library(plotly)
 library(org.Hs.eg.db)
 library(randomForest)
 library(ReactomePA)
