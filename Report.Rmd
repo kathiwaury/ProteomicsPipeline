@@ -75,7 +75,9 @@ The wilcoxon test failed for `r wilcoxCounterNA` proteins.
 P-value calculated for **`r N`** proteins. Out of those **`r M`** proteins showed a significant p-value < 0.05. The complete list of significant proteins can be found below.
 
 ```{r wilcoxon results table DT}
-DT::datatable(wilcoxResultsSignificant)
+DT::datatable(wilcoxResultsSignificant, colnames = c("Description", "Gene", "P-value", 
+  "Adjusted P-value")) %>% 
+  formatRound(c("Pvalue", "Pvalue.adj"), 6)
 ```
 
 ### Fold change 
@@ -93,7 +95,8 @@ The complete list of the calculated fold change between affected and control sam
 # fold_change_results  %>%
 # kable(format = "html") %>%
 # kable_styling()
-DT::datatable(fold_change_results)
+DT::datatable(fold_change_results, colnames = c("Description", "Gene", "Fold change")) %>% 
+  formatRound("foldChange", 6)
 ```
 
 ### Volcano plot
@@ -114,22 +117,24 @@ resultsSignificant <- results[indSignificant, ]
 ### Model accuracy
 
 ```{r random forest accuracy}
-accuracy <- vector()
+testError <- vector()
 
 for (i in 1:length(random_forest_results)) {
     #subset one random forest object
     fit.RF <- random_forest_results[[i]]
     #extract feature importance ranking and append to results vector
-    accuracy <- append(accuracy, fit.RF$test$err.rate[fit.RF$ntree])
+    testError <- append(testError, fit.RF$test$err.rate[fit.RF$ntree])
 }
+
+accuracy <- sapply(testError, FUN = function(x) (1 - x)*100)
 ```
 
-The classification models produced an average accuracy of **`r round((1-mean(accuracy)) * 100, 2)`** with a standard deviation of **`r round(sd(accuracy) * 100, 2)`**. The distribution of the individual model accuracies is shown in the following boxplot.
+The classification models produced an average accuracy of **`r round(mean(accuracy), 2)`** with a standard deviation of **`r round(sd(accuracy), 2)`**. The distribution of the individual model accuracies is shown in the following boxplot.
 
 ```{r random forest accuracy plot}
 ggplot(as.data.frame(accuracy), aes(x="", y = accuracy)) + 
   geom_boxplot(colour = "black", fill = "dodgerblue4") +
-  labs(x = "", y = "accuracy", title = "Test error accuracy of Random Forest models")
+  labs(x = "", y = "accuracy", title = "Classification accuracy of Random Forest models")
 ```
 
 ### Protein ranking
@@ -139,13 +144,24 @@ ggplot(as.data.frame(accuracy), aes(x="", y = accuracy)) +
 # kable(format = "html") %>%
 # kable_styling()
 
-DT::datatable(proteins_ranked)
+DT::datatable(proteins_ranked, rownames = FALSE) %>% 
+  formatRound("Importance", 6)
 ```
 
 
 ### Protein set selection
 
 `r nrow(unique_protein_list)` were selected for further analysis.
+
+```{r proteins selected importance table}
+# unique_protein_list  %>%
+# kable(format = "html") %>%
+# kable_styling()
+
+DT::datatable(unique_protein_list, rownames = FALSE)
+```
+
+### Highest ranking proteins
 
 ```{r proteins selected importance plot}
 ranking_plot <- proteins_ranked[1:10, 2:3]
@@ -159,15 +175,6 @@ ggplot(ranking_plot, aes(x = ranking_plot[, 1], y = ranking_plot[, 2])) +
     labs(x = "Genes", y = "Importance", title = 
       "Genes with highest average importance across all Random Forests")
 ```
-
-```{r proteins selected importance table}
-# unique_protein_list  %>%
-# kable(format = "html") %>%
-# kable_styling()
-
-DT::datatable(unique_protein_list)
-```
-
 ### Info 
 
 ## Protein set analysis {.tabset}
@@ -179,7 +186,10 @@ DT::datatable(unique_protein_list)
 #   kable(format = "html") %>%
 #   kable_styling()
 
-DT::datatable(as.data.frame(GO_term_analysis_results))
+DT::datatable(as.data.frame(GO_term_analysis_results), rownames = FALSE, 
+  colnames = c("ID", "Description",   "Gene Ratio", "BG Ratio", "P-value", "Adjusted P-value", 
+  "Q-value", "Gene ID")) %>% 
+  formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
 ```
 
 
@@ -190,18 +200,24 @@ DT::datatable(as.data.frame(GO_term_analysis_results))
 #   kable(format = "html") %>%
 #   kable_styling()
 
-DT::datatable(data.frame(pathway_analysis_results))
+DT::datatable(data.frame(pathway_analysis_results), rownames = FALSE, 
+  colnames = c("ID", "Description", "Gene Ratio", "BG Ratio", "P-value", "Adjusted P-value", 
+  "Q-value", "Gene ID")) %>% 
+  formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
 ```
 
 
-### Disease analysis 
+### Disease ontology analysis 
   
 ```{r disease analysis}
 # data.frame(disease_analysis_results) %>%
 #   kable(format = "html") %>%
 #   kable_styling()
 
-DT::datatable(data.frame(disease_analysis_results))
+DT::datatable(data.frame(disease_analysis_results), rownames = FALSE, 
+  colnames = c("ID", "Description", "Gene Ratio", "BG Ratio", "P-value", "Adjusted P-value", 
+  "Q-value", "Gene ID")) %>% 
+  formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
 ```
 
 ### Info
