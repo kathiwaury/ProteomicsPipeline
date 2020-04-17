@@ -206,13 +206,16 @@ volcano_plot <- function(wilcox_results, fold_change_results) {
   plot <- ggplot() +
     geom_point(data = results, mapping = aes(x = foldChange, y = -log10(Pvalue.adj))) +
     geom_point(data = resultsSignificant, mapping =
-                 aes(x = foldChange, y = -log10(Pvalue.adj)), color = "dodgerblue4") +
+                 aes(x = foldChange, y = -log10(Pvalue.adj), name = Gene), color = "dodgerblue4") +
+    # geom_text_repel(data = resultsSignificant, mapping = aes(x = foldChange, y = -log10(Pvalue.adj), label = Gene), check_overlap = TRUE) +
     geom_vline(xintercept = c(-0.25, 0.25), linetype = "dotted", size = 1) +
-    geom_hline(    yintercept = -log10(0.05), linetype = "dotted", size = 1) +
+    geom_hline(yintercept = -log10(0.05), linetype = "dotted", size = 1) +
     labs(x = "Log(2) fold change", y = "-Log10(adjusted p-value)",
          title = "Volcano plot of P-value and fold change")
+  #make plot interactive
+  interactivePlot <- ggplotly(plot)
   
-  plot
+  interactivePlot
 }
 
 random_forest <- function(data) {
