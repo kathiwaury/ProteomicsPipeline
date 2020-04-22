@@ -112,6 +112,24 @@ resultsSignificant <- results[indSignificant, ]
 
 ### Info
 
+**Wilcoxon rank-sum test**
+
+The Wilcoxon rank-sum test is a non-parametiric statistical test that can be used to find significant differences between two unpaired groups that are not normally distributed. The observations of the two groups are combined and ordered by their value. A rank is assigned to each from low to high and the mean rank of both groups is then compared. A bigger difference between the mean ranks of the two groups, will produce a smaller and therefore more significant P-value^1^. The P-value is adjusted for multiple testing using the FDR method. 
+
+In this analysis the mean ranks of the two classes `r levels(data_in[, 2])[1]` and `r levels(data_in[, 2])[2]`are compared.
+
+**Fold change**
+
+The calculation of the fold change for every feature, i.e. protein, allows to compare the difference in gene expression of a case group compared to a control group used as a baseline. It allows the identification of differentially-expressed genes between the two conditions^2^. As the input data is already expected to be log2-transformed, the fold change is simply the difference between the means of the control group, `r levels(data_in[, 2])[2]`, and the case group, `r levels(data_in[, 2])[1]`. 
+
+$$FC_i = mean(X_i) - mean(Y_i)$$
+
+A negative value for the fold change of a gene signals a downregulation of the expression, a positive fold change value signals upregulation.
+
+**Volcano plot**
+
+The volcano plot is a visulaization method to display statistical significance of a difference versus the magnitude of change. This is achieved by plotting the log2 fold change on the x-axis and the negative log10 of the adjusted P-value on the y-axis for every protein in the data set^3^. The dotted lines mark a significant adjusted P-value (horizontally) and a gene expression in the case group increased or decreased by 0.2.
+
 ## Random Forest Classification {.tabset}
 
 ### Model accuracy
@@ -175,7 +193,37 @@ ggplot(ranking_plot, aes(x = ranking_plot[, 1], y = ranking_plot[, 2])) +
     labs(x = "Genes", y = "Importance", title = 
       "Genes with highest average importance across all Random Forests")
 ```
+
 ### Info 
+
+**Random Forest**
+
+Random forest is a supervised machine learning method that can be used for classification problems. The aim of the model in this pipeline is to correctly predict for an observation which class it belongs to based on the protein measurements of that observation.
+
+The method works by segmenting the feature space into simpler regions that allow the assignment of an observation to a class. The rules for splitting the feature space can be summarized in so-called decision trees. To build such a decision tree, the model searches for the feature that is best suitable to split the observations in a way that separates the two classes in the data set the best. After a first split, two non-overlapping subregions of the feature space exist and the model searches for the next feature to further separate the regions according to their classes. This step is repeated again and again to grow the tree and to segment the feature space more and more into regions of higher class purity^4^.
+
+Random forest use two strategies to improve the accuracy of this tree-based classifiaction. As the name suggests, the class prediction for an observation is based on many decision trees instead of just one. The consensus of all trees is the class chosen by the model. Moreover, before each tree for the model is built a random sampling of the features is performed. As a result, every tree can only use a small subset of the available features which ensures that the trees in a random forest are different and uncorrelated to each other^4^. 
+
+In the pipeline 20 random forest models were built each containing 6000 trees. 
+
+For more information on the algorithm used, see the randomForest R package documentation: https://www.rdocumentation.org/packages/randomForest/versions/4.6-14/topics/randomForest.
+
+**Protein ranking**
+
+Random forest allows to rank all variables used based on their importance for the classification model. The ranking is based on the mean decrease in Gini index. The Gini index is considered a measure of node purity and is defined as
+
+$$G = \sum_{k=1}^K p_{mk}(1-p_{mk})$$
+
+with $p_{mk}$ representing the proportion of observations in the m^th^ region that are from the k^th^ class^4^.
+
+The decrease in Gini index measures the decrease in impurity that a feature facilitates as it is used in a split of the feature space and therefore measures the impact of this variable on the classification. The mean decrease in Gini index is the average of the impurity reductions over all trees in which the variable was used for classification. The higher the decrease in Gini index, the higher the importanceof that variable in the model^5^.
+
+The rankign of the proteins is based on all 20 random forest models built by averaging the mean decrease in Ginin index of all forests.
+
+**Protein set selection**
+
+The selection of proteins that are analysed further depends on their mean Gini index relative to the feature with the highest importance. Every variable with an importance measure of at least one third of the highest ranking protein is included. If less than 20 proteins were selected by this measurement, the list is expanded using the results of the Wilcoxon test. Duplicates of the same protein are removed at this stage.
+
 
 ## Protein set analysis {.tabset}
 
@@ -220,4 +268,34 @@ DT::datatable(data.frame(disease_analysis_results), rownames = FALSE,
   formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
 ```
 
+### Gene set enrichment analysis
+
+```{r}
+DT::datatable(data.frame(disease_analysis_results), rownames = FALSE, 
+  colnames = c("ID", "Description", "Gene Ratio", "BG Ratio", "P-value", "Adjusted P-value", 
+  "Q-value", "Gene ID")) %>% 
+  formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
+```
+
 ### Info
+
+## References
+
+1 McDonald JH. 2014. Handbook of Biological Statistics (3rd ed.), pp.157-164. Sparky House
+Publishing, Baltimore, Maryland.
+
+2 Witten DM, Tibshirani R. 2007. A comparison of fold-change and the t-statistic
+for microarray data analysis. Stanford University. 1-13.
+
+3 Doyle M. 2019 Visualization of RNA-Seq results with Volcano Plot (Galaxy Training Materials). /training-material/topics/transcriptomics/tutorials/rna-seq-viz-with-volcanoplot/tutorial.html Online; accessed Fri Apr 17 2020
+
+4 James G, Witten D, Hastie T, Tibshirani R. 2013. An Introduction to Statistical Learning: with
+Applications in R (8^th^ ed.). Springer Science+Business Media, New York.
+
+5 Archer KJ, Kimes RV. 2008. Empirical characterization of random forest variable importance measures. Computational Statistics & Data Analysis, 52(4), 2249–2260. doi:10.1016/j.csda.2007.08.015.
+
+6
+
+7
+
+8
