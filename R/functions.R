@@ -3,47 +3,94 @@ data_check <- function(file) {
   if (file.exists(file) == FALSE) {
     stop("File wasn't loaded. Couldn't find a file of that name.")
   }
+  
   if (reader::get.ext(file) != "csv") {
     stop("File wasn't loaded. The file needs to be in csv format.")
   }
-  print("File check successful!")
+  
   #load file as data frame into R
   data <- read.csv(file = file, header = TRUE, sep = ",", stringsAsFactors = FALSE)
-  print("File read!")
+  
   #check for empty  or NULL data object
   if (is.null(data) == TRUE || nrow(data) == 0) {
     stop("Loaded object is NULL or empty.")
   }
+  
   #check for NA values in data frame
   if (any(is.na(data)) == TRUE) {
     stop("NA values detected.")
   }
+  
+  N <- length(data)
   #check if number of columns is sufficient
-  if (length(data) <= 3) {
+  if (N <= 3) {
     stop("Less than 4 columns detected.")
   }
-  #check correct type of ID and class columns
-  N <- length(data)
+  
+  #check correct type of sample ID columns
   if (typeof(data[, 1]) != "character")  {
     stop("The first column must be of type character.")
   }
+  
+  #check correct type of class column
   if (typeof(data[, 2]) != "character") {
     stop("The second column must be of type character.")
   }
+  
   #check correct type of proteomics data
   for (i in 3:N) {
     if (typeof(data[, i]) != "integer" && typeof(data[, i]) != "double") {
       stop("The columns are not of the required type.")
     }
   }
-  data[, 2] <- factor(data[, 2])
+  
+  #rename first two columns
+  names(data)[1] <- "SampleID"
+  names(data)[2] <- "Class"
+  
+  #convert class column into factor
+  data$Class <- factor(data$Class)
+  
+  #set case class
+  inputCounter <- 0
+  case <- readline(prompt = "Enter the name of the case group: ")
+  #check if class name exists
+  while (!(case %in% levels(data$Class))) {
+    case <- readline(prompt = "Could not find that label. Try again to enter the name of the case group: ")
+    #track number of failed attempts
+    inputCounter <- inputCounter + 1
+    if (inputCounter > 5) {
+      stop("Repeatedly failed attempts to assign class. Pipeline is terminated.")
+    }
+  }
+  
+  #set control class
+  inputCounter <- 0
+  control <- readline(prompt = "Enter the name of the control group: ")
+  #check if class name exists and is different from case class
+  while (!(control %in% levels(data$Class)) || case == control) {
+    if (case == control) {
+      control <- readline(prompt = "Cannot use the same label for control and case class. Try again to enter the name of the control group: ")
+    } else {
+      control <- readline(prompt = "Could not find that label. Try again to enter the name of the control group: ")      
+    }
+    #track number of failed attempts
+    inputCounter <- inputCounter + 1
+    if (inputCounter > 5) {
+      stop("Repeatedly  failed attempts to assign class. Pipeline is terminated.")
+    }
+  }
+  
   #check for only two classes in the classification column
-  if (length(levels(factor(data[, 2]))) > 2) {
-    stop("More than two classes for classification detected.")
+  if (length(levels(data$Class)) > 2) {
+    print("More than two labels in class column detected. Samples that are not part of case and control class will be removed.")
+    #remove all samples that are not part of control or case class
+    data <- data[which(data$Class %in% c(case, control)), ]
   }
-  if (length(levels(factor(data[, 2]))) < 2) {
-    stop("Less than two classes for classification detected.")
-  }
+  
+  #set order of levels
+  data$Class <- factor(data$Class, levels = c(case, control))
+  
   print("Data check successful!")
   
   data
@@ -57,27 +104,32 @@ protein_info_check <- function(file, table) {
   if (get.ext(file) != "csv") {
     stop("Protein info file wasn't loaded. The file needs to be in csv format.")
   }
-  print("Protein info file check successful!")
+  
   #load file as data frame into R
   data <- read.csv(file = file, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+  
   #check for more than two columns
-  print("Protein info file read!")
   if (length(data) > 2) {
     print("More than two columns detected. Only the first two will be used.")
     data <- data[, 1:2]
   }
+  
   #check for empty  or NULL data object
   if (is.null(data) == TRUE || nrow(data) == 0) {
     stop("Loaded object is NULL or empty.")
   }
+  
   #check for NA values in data frame
   if (any(is.na(data)) == TRUE) {
     stop("NA values detected.")
   }
-  #check correct type of label and class columns
+  
+  #check correct type of description column
   if (typeof(data[, 1]) != "character") {
     stop("The first column is not of type character.")
   }
+  
+  #check correct type of gene name column
   if (typeof(data[, 2]) != "character") {
     stop("The second column is not of type character.")
   }
@@ -88,6 +140,7 @@ protein_info_check <- function(file, table) {
     stop("Protein info is not provided for all features in the data set.")
   }
   
+  #rename first two columns
   names(data)[1] <- "Description"
   names(data)[2] <- "Gene"
   
@@ -226,7 +279,7 @@ random_forest <- function(data) {
   class.2 <- levels(factor(data[, 2]))[2]
   
   #set number of iterations and number of trees per random forest
-  M <- 10
+  M <- 20
   trees <- 6000
   
   #initiate empty list
