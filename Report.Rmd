@@ -35,11 +35,11 @@ loadd(disease_analysis_results)
 ## Data
 
 ```{r data info display}
-names <- c("Number of features", "Number of samples", "Class 1", "Class 2",
-  "Number of samples in class 1", "Number of samples in class 2")
+names <- c("Number of features", "Number of samples", "Case class", "Control class",
+  "Number of samples in case class", "Number of samples in control class")
 
-values <- as.character(c(dim(data_in)[2] - 2, dim(data_in)[1], levels(data_in[, 2])[1], 
-  levels(data_in[, 2])[2],
+values <- as.character(c(dim(data_in)[2] - 2, dim(data_in)[1], levels(data_in$Class)[1], 
+  levels(data_in$Class)[2],
   nrow(data_in[which(data_in[, 2] == levels(data_in[, 2])[1]), ]),
   nrow(data_in[which(data_in[, 2] == levels(data_in[, 2])[2]), ])))
 
