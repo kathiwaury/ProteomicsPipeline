@@ -9,7 +9,7 @@ if(length(newPackages) > 0) {
 }
 
 #install and load missing packages from BioConductor
-packagesListBC <- c("clusterProfiler",  "DOSE", "org.Hs.eg.db",  "ReactomePA", "UniProt.ws")
+packagesListBC <- c("clusterProfiler",  "DOSE", "org.Hs.eg.db",  "ReactomePA")
 newPackagesBC <- packagesListBC[!(packagesListBC %in% installed.packages()[,"Package"])]
 if(length(newPackagesBC) > 0) {
   BiocManager::install(newPackagesBC)
@@ -30,7 +30,6 @@ library(org.Hs.eg.db)
 library(randomForest)
 library(ReactomePA)
 library(reader)
-library(UniProt.ws)
 
 
 
