@@ -20,16 +20,16 @@ library(knitr)
 ```
   
 ```{r load targets}
-loadd(data_in)
-loadd(wilcox_results)
-loadd(fold_change_results)
-loadd(plot_results)
-loadd(random_forest_results)
-loadd(proteins_ranked)
-loadd(unique_protein_list)
-loadd(GO_term_analysis_results)
-loadd(pathway_analysis_results)
-loadd(disease_analysis_results)
+loadd(data)
+loadd(wilcoxonResults)
+loadd(foldChangeResults)
+loadd(plotResults)
+loadd(randomForestResults)
+loadd(proteinsRanked)
+loadd(proteinSetUnique)
+loadd(GOAnalysisResults)
+loadd(DOAnalysisResults)
+loadd(pathwayAnalysisResults)
 ```
 
 ## Data
@@ -38,10 +38,10 @@ loadd(disease_analysis_results)
 names <- c("Number of features", "Number of samples", "Case class", "Control class",
   "Number of samples in case class", "Number of samples in control class")
 
-values <- as.character(c(dim(data_in)[2] - 2, dim(data_in)[1], levels(data_in$Class)[1], 
-  levels(data_in$Class)[2],
-  nrow(data_in[which(data_in[, 2] == levels(data_in[, 2])[1]), ]),
-  nrow(data_in[which(data_in[, 2] == levels(data_in[, 2])[2]), ])))
+values <- as.character(c(dim(data)[2] - 2, dim(data)[1], levels(data$Class)[1], 
+  levels(data$Class)[2],
+  nrow(data[which(data[, 2] == levels(data[, 2])[1]), ]),
+  nrow(data[which(data[, 2] == levels(data[, 2])[2]), ])))
 
 info <- cbind(names, values)
 
@@ -54,25 +54,25 @@ DT::datatable(info, options = list(dom = 't', ordering = FALSE), colnames = rep(
 ```{r wilcoxon results NA check}
 
 #check for NA values in data frame
-wilcoxCounterNA <- sum(is.na(wilcox_results[, 4]))
+wilcoxonCounterNA <- sum(is.na(wilcoxonResults[, 4]))
   
 #number of proteins for which p-value was calculated
-N <- nrow(wilcox_results) - wilcoxCounterNA
+N <- nrow(wilcoxonResults) - wilcoxonCounterNA
 
 #calculate number of significant proteins
-wilcoxResultsSignificant <- wilcox_results %>% 
+wilcoxonResultsSignificant <- wilcoxonResults %>% 
   filter(Pvalue.adj < 0.05) %>% 
   arrange(Pvalue.adj)
 
-M <- nrow(wilcoxResultsSignificant)
+M <- nrow(wilcoxonResultsSignificant)
 ```
 
-The wilcoxon test failed for `r wilcoxCounterNA` proteins. 
+The wilcoxon test failed for `r wilcoxonCounterNA` proteins. 
 
 P-value calculated for **`r N`** proteins. Out of those **`r M`** proteins showed a significant p-value < 0.05. The complete list of significant proteins can be found below.
 
 ```{r wilcoxon results table DT}
-DT::datatable(wilcoxResultsSignificant, colnames = c("Description", "Gene", "P-value", 
+DT::datatable(wilcoxonResultsSignificant, colnames = c("Description", "Gene", "P-value", 
   "Adjusted P-value")) %>% 
   formatRound(c("Pvalue", "Pvalue.adj"), 6)
 ```
@@ -80,7 +80,7 @@ DT::datatable(wilcoxResultsSignificant, colnames = c("Description", "Gene", "P-v
 ### Fold Change 
 ```{r fold change results NA check}
 #check for NA values in data frame
-foldChangeCounterNA <- sum(is.na(fold_change_results[, 2]))
+foldChangeCounterNA <- sum(is.na(foldChangeResults[, 2]))
 ```
 
 The fold change calculation failed for `r foldChangeCounterNA` proteins. 
@@ -88,22 +88,13 @@ The fold change calculation failed for `r foldChangeCounterNA` proteins.
 The complete list of the calculated fold change between affected and control samples can be found below.
 
 ```{r fold change results table}
-# fold_change_results  %>%
-# kable(format = "html") %>%
-# kable_styling()
-DT::datatable(fold_change_results, colnames = c("Description", "Gene", "Fold change")) %>% 
+DT::datatable(foldChangeResults, colnames = c("Description", "Gene", "Fold change")) %>% 
   formatRound("foldChange", 6)
 ```
 
 ### Volcano Plot
 ```{r volcano plot}
-plot_results
-```
-
-```{r volcano plot marked proteins, eval = FALSE}
-indSignificant <- which((results$Pvalue.adj < 0.05 & results$foldChange > 0.25) |
-    (results$Pvalue.adj < 0.05 & results$foldChange < -0.25))
-resultsSignificant <- results[indSignificant, ]
+plotResults
 ```
 
 ### Info
@@ -112,11 +103,11 @@ resultsSignificant <- results[indSignificant, ]
 
 The Wilcoxon rank-sum test is a non-parametric statistical test that can be used to find significant differences between two unpaired groups that are not normally distributed. The observations of the two groups are combined and ordered by their value. A rank is assigned to each from low to high and the mean rank of both groups is then compared. A bigger difference between the mean ranks of the two groups, will produce a smaller and therefore more significant P-value^1^. The P-value is adjusted for multiple testing using the FDR method. 
 
-In this analysis the mean ranks of the two classes `r levels(data_in[, 2])[1]` and `r levels(data_in[, 2])[2]` are compared.
+In this analysis the mean ranks of the two classes `r levels(data[, 2])[1]` and `r levels(data[, 2])[2]` are compared.
 
 **Fold change**
 
-The calculation of the fold change for every feature, i.e. protein, allows to compare the difference in gene expression of a case group compared to a control group used as a baseline. It allows the identification of differentially-expressed genes between the two conditions^2^. As the input data is already expected to be log2-transformed, the fold change is simply the difference between the means of the control group, `r levels(data_in[, 2])[2]`, and the case group, `r levels(data_in[, 2])[1]`. 
+The calculation of the fold change for every feature, i.e. protein, allows to compare the difference in gene expression of a case group compared to a control group used as a baseline. It allows the identification of differentially-expressed genes between the two conditions^2^. As the input data is already expected to be log2-transformed, the fold change is simply the difference between the means of the control group, `r levels(data[, 2])[2]`, and the case group, `r levels(data[, 2])[1]`. 
 
 $$FC_i = mean(X_i) - mean(Y_i)$$
 
@@ -132,9 +123,9 @@ The volcano plot is a visualization method to display statistical significance o
 ```{r random forest accuracy}
 testError <- vector()
 
-for (i in 1:length(random_forest_results)) {
+for (i in 1:length(randomForestResults)) {
     #subset one random forest object
-    fit.RF <- random_forest_results[[i]]
+    fit.RF <- randomForestResults[[i]]
     #extract feature importance ranking and append to results vector
     testError <- append(testError, fit.RF$test$err.rate[fit.RF$ntree])
 }
@@ -152,29 +143,31 @@ ggplot(as.data.frame(accuracy), aes(x="", y = accuracy)) +
 
 ### Protein Ranking
 ```{r proteins ranked table}
-DT::datatable(proteins_ranked, rownames = FALSE) %>% 
+DT::datatable(proteinsRanked, rownames = FALSE) %>% 
   formatRound("Importance", 6)
 ```
 
 ### Protein Set Selection
 
-`r nrow(unique_protein_list)` were selected for further analysis.
+`r nrow(proteinSetUnique)` were selected for further analysis.
 ```{r proteins selected importance table}
-DT::datatable(unique_protein_list, rownames = FALSE)
+DT::datatable(proteinSetUnique, rownames = FALSE)
 ```
 
 ### Highest Ranking Proteins
 ```{r proteins selected importance plot}
-ranking_plot <- proteins_ranked[1:10, 2:3]
+#subset for top 10 features 
+topTenGenes <- proteinsRanked[1:10, 2:3]
 
-ranking_plot$Gene <- factor(ranking_plot$Gene,
-                        levels=ranking_plot$Gene)
+#reset order of levels in factor
+topTenGenes$Gene <- factor(topTenGenes$Gene,
+                        levels=topTenGenes$Gene)
 
-ggplot(ranking_plot, aes(x = ranking_plot[, 1], y = ranking_plot[, 2])) +
+ggplot(topTenGenes, aes(x = topTenGenes[, 1], y = topTenGenes[, 2])) +
   geom_bar(aes(), stat="identity", colour = "black", fill = "dodgerblue4") +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     labs(x = "Genes", y = "Importance", title = 
-      "Genes with highest average importance across all Random Forests")
+      "Genes with highest average importance across all Random Forest models")
 ```
 
 ### Info 
@@ -212,7 +205,7 @@ The selection of proteins that are analysed further depends on their mean decrea
 
 ### Gene Ontology Term Analysis
 ```{r GO term analysis}
-DT::datatable(as.data.frame(GO_term_analysis_results), rownames = FALSE, 
+DT::datatable(as.data.frame(GOAnalysisResults), rownames = FALSE, 
   colnames = c("ID", "Description",   "Gene Ratio", "BG Ratio", "P-value", "Adjusted P-value", 
   "Q-value", "Gene ID", "Count")) %>% 
   formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
@@ -220,7 +213,7 @@ DT::datatable(as.data.frame(GO_term_analysis_results), rownames = FALSE,
 
 ### Disease Ontology Term Analysis 
 ```{r disease analysis}
-DT::datatable(data.frame(disease_analysis_results), rownames = FALSE, 
+DT::datatable(data.frame(DOAnalysisResults), rownames = FALSE, 
   colnames = c("ID", "Description", "Gene Ratio", "BG Ratio", "P-value", "Adjusted P-value", 
   "Q-value", "Gene ID", "Count")) %>% 
   formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
@@ -228,7 +221,7 @@ DT::datatable(data.frame(disease_analysis_results), rownames = FALSE,
 
 ### Pathway Enrichment Analysis
 ```{r pathway enrichment analysis}
-DT::datatable(data.frame(pathway_analysis_results), rownames = FALSE, 
+DT::datatable(data.frame(pathwayAnalysisResults), rownames = FALSE, 
   colnames = c("ID", "Description", "Gene Ratio", "BG Ratio", "P-value", "Adjusted P-value", 
   "Q-value", "Gene ID", "Count")) %>% 
   formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
