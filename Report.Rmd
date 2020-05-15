@@ -1,5 +1,5 @@
 ---
-title: "Proteomics analysis pipeline results"
+title: "Proteomics Analysis Pipeline Results"
 output:
   html_document:
     toc: TRUE
@@ -48,10 +48,9 @@ info <- cbind(names, values)
 DT::datatable(info, options = list(dom = 't', ordering = FALSE), colnames = rep("", ncol(info)), )
 ```
 
-## First analysis {.tabset}
+## Univariate analysis {.tabset}
 
-### Wilcoxon rank-sum test
-
+### Wilcoxon Rank-sum Test
 ```{r wilcoxon results NA check}
 
 #check for NA values in data frame
@@ -66,8 +65,6 @@ wilcoxResultsSignificant <- wilcox_results %>%
   arrange(Pvalue.adj)
 
 M <- nrow(wilcoxResultsSignificant)
-
-#`r if(wilcoxWarningNA){paste("WARNING:", NAcounter, "NA values detected.", sep = " "}`
 ```
 
 The wilcoxon test failed for `r wilcoxCounterNA` proteins. 
@@ -80,8 +77,7 @@ DT::datatable(wilcoxResultsSignificant, colnames = c("Description", "Gene", "P-v
   formatRound(c("Pvalue", "Pvalue.adj"), 6)
 ```
 
-### Fold change 
-
+### Fold Change 
 ```{r fold change results NA check}
 #check for NA values in data frame
 foldChangeCounterNA <- sum(is.na(fold_change_results[, 2]))
@@ -99,7 +95,7 @@ DT::datatable(fold_change_results, colnames = c("Description", "Gene", "Fold cha
   formatRound("foldChange", 6)
 ```
 
-### Volcano plot
+### Volcano Plot
 ```{r volcano plot}
 plot_results
 ```
@@ -114,9 +110,9 @@ resultsSignificant <- results[indSignificant, ]
 
 **Wilcoxon rank-sum test**
 
-The Wilcoxon rank-sum test is a non-parametiric statistical test that can be used to find significant differences between two unpaired groups that are not normally distributed. The observations of the two groups are combined and ordered by their value. A rank is assigned to each from low to high and the mean rank of both groups is then compared. A bigger difference between the mean ranks of the two groups, will produce a smaller and therefore more significant P-value^1^. The P-value is adjusted for multiple testing using the FDR method. 
+The Wilcoxon rank-sum test is a non-parametric statistical test that can be used to find significant differences between two unpaired groups that are not normally distributed. The observations of the two groups are combined and ordered by their value. A rank is assigned to each from low to high and the mean rank of both groups is then compared. A bigger difference between the mean ranks of the two groups, will produce a smaller and therefore more significant P-value^1^. The P-value is adjusted for multiple testing using the FDR method. 
 
-In this analysis the mean ranks of the two classes `r levels(data_in[, 2])[1]` and `r levels(data_in[, 2])[2]`are compared.
+In this analysis the mean ranks of the two classes `r levels(data_in[, 2])[1]` and `r levels(data_in[, 2])[2]` are compared.
 
 **Fold change**
 
@@ -128,12 +124,11 @@ A negative value for the fold change of a gene signals a downregulation of the e
 
 **Volcano plot**
 
-The volcano plot is a visulaization method to display statistical significance of a difference versus the magnitude of change. This is achieved by plotting the log2 fold change on the x-axis and the negative log10 of the adjusted P-value on the y-axis for every protein in the data set^3^. The dotted lines mark a significant adjusted P-value (horizontally) and a gene expression in the case group increased or decreased by 0.2.
+The volcano plot is a visualization method to display statistical significance of a difference versus the magnitude of change. This is achieved by plotting the log2 fold change on the x-axis and the negative log10 of the adjusted P-value on the y-axis for every protein in the data set^3^. The dotted lines mark a significant adjusted P-value (horizontally) or a gene expression in the case group increased or decreased by 0.2 (vertically). Features that meet both those conditions are highlighted in colour.
 
 ## Random Forest Classification {.tabset}
 
-### Model accuracy
-
+### Model Accuracy
 ```{r random forest accuracy}
 testError <- vector()
 
@@ -155,32 +150,20 @@ ggplot(as.data.frame(accuracy), aes(x="", y = accuracy)) +
   labs(x = "", y = "accuracy", title = "Classification accuracy of Random Forest models")
 ```
 
-### Protein ranking
-
+### Protein Ranking
 ```{r proteins ranked table}
-# proteins_ranked  %>%
-# kable(format = "html") %>%
-# kable_styling()
-
 DT::datatable(proteins_ranked, rownames = FALSE) %>% 
   formatRound("Importance", 6)
 ```
 
-
-### Protein set selection
+### Protein Set Selection
 
 `r nrow(unique_protein_list)` were selected for further analysis.
-
 ```{r proteins selected importance table}
-# unique_protein_list  %>%
-# kable(format = "html") %>%
-# kable_styling()
-
 DT::datatable(unique_protein_list, rownames = FALSE)
 ```
 
-### Highest ranking proteins
-
+### Highest Ranking Proteins
 ```{r proteins selected importance plot}
 ranking_plot <- proteins_ranked[1:10, 2:3]
 
@@ -200,15 +183,15 @@ ggplot(ranking_plot, aes(x = ranking_plot[, 1], y = ranking_plot[, 2])) +
 
 Random forest is a supervised machine learning method that can be used for classification problems. The aim of the model in this pipeline is to correctly predict for an observation which class it belongs to based on the protein measurements of that observation.
 
-The method works by segmenting the feature space into simpler regions that allow the assignment of an observation to a class. The rules for splitting the feature space can be summarized in so-called decision trees. To build such a decision tree, the model searches for the feature that is best suitable to split the observations in a way that separates the two classes in the data set the best. After a first split, two non-overlapping subregions of the feature space exist and the model searches for the next feature to further separate the regions according to their classes. This step is repeated again and again to grow the tree and to segment the feature space more and more into regions of higher class purity^4^.
+The method works by segmenting the feature space into simpler regions that allow the assignment of an observation to a class with increasing confidence. The rules for splitting the feature space can be summarized in so-called decision trees. To build such a decision tree, the model searches for the feature variable that is best suitable to split the observations in a way that separates the two classes in the data set the best. After a first split, two non-overlapping subregions of the feature space exist and the model searches for the next feature to further separate the regions according to their classes. This step is repeated again and again to grow the tree and to segment the feature space into regions of higher class purity^4^.
 
-Random forest use two strategies to improve the accuracy of this tree-based classifiaction. As the name suggests, the class prediction for an observation is based on many decision trees instead of just one. The consensus of all trees is the class chosen by the model. Moreover, before each tree for the model is built a random sampling of the features is performed. As a result, every tree can only use a small subset of the available features which ensures that the trees in a random forest are different and uncorrelated to each other^4^. 
+Random forest use two strategies to improve the accuracy of this tree-based classifiaction. As the name suggests, the class prediction for an observation is based on many decision trees instead of just one. The consensus of all trees is the class chosen by the model. Moreover, before each tree for the model is built a random sampling of the features is performed. As a result, every tree can only use a small subset of the available features which ensures that the trees in a random forest are different from and uncorrelated to each other^4^. 
 
 In the pipeline 20 random forest models were built each containing 6000 trees. 
 
 For more information on the algorithm used, see the randomForest R package documentation: https://www.rdocumentation.org/packages/randomForest/versions/4.6-14/topics/randomForest.
 
-**Protein ranking**
+**Protein Ranking**
 
 Random forest allows to rank all variables used based on their importance for the classification model. The ranking is based on the mean decrease in Gini index. The Gini index is considered a measure of node purity and is defined as
 
@@ -216,68 +199,51 @@ $$G = \sum_{k=1}^K p_{mk}(1-p_{mk})$$
 
 with $p_{mk}$ representing the proportion of observations in the m^th^ region that are from the k^th^ class^4^.
 
-The decrease in Gini index measures the decrease in impurity that a feature facilitates as it is used in a split of the feature space and therefore measures the impact of this variable on the classification. The mean decrease in Gini index is the average of the impurity reductions over all trees in which the variable was used for classification. The higher the decrease in Gini index, the higher the importanceof that variable in the model^5^.
+The decrease in Gini index measures the decrease in impurity that a feature facilitates as it is used in a split of the feature space and therefore measures the impact of this variable on the classification. The mean decrease in Gini index is the average of the impurity reductions over all trees in which the variable was used for classification. The higher the decrease in Gini index, the higher the importance of that variable in the model^5^.
 
-The rankign of the proteins is based on all 20 random forest models built by averaging the mean decrease in Ginin index of all forests.
+The ranking of the proteins is based on all 20 random forest models fitted by averaging the mean decrease in Gini index of all forests.
 
-**Protein set selection**
+**Protein Set Selection**
 
-The selection of proteins that are analysed further depends on their mean Gini index relative to the feature with the highest importance. Every variable with an importance measure of at least one third of the highest ranking protein is included. If less than 20 proteins were selected by this measurement, the list is expanded using the results of the Wilcoxon test. Duplicates of the same protein are removed at this stage.
+The selection of proteins that are analysed further depends on their mean decrease in Gini index relative to the feature with the highest importance. Every variable with an importance measure of at least one third of the highest ranking protein is included. If less than 50 proteins were selected by this measurement, the list is expanded using the results of the Wilcoxon test. Duplicates of the same protein are removed at this stage.
 
 
-## Protein set analysis {.tabset}
+## Protein Set Analysis {.tabset}
 
-### Gene ontology term analysis
-  
+### Gene Ontology Term Analysis
 ```{r GO term analysis}
-# as.data.frame(GO_term_analysis_results) %>%
-#   kable(format = "html") %>%
-#   kable_styling()
-
 DT::datatable(as.data.frame(GO_term_analysis_results), rownames = FALSE, 
   colnames = c("ID", "Description",   "Gene Ratio", "BG Ratio", "P-value", "Adjusted P-value", 
-  "Q-value", "Gene ID")) %>% 
+  "Q-value", "Gene ID", "Count")) %>% 
   formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
 ```
 
+### Disease Ontology Term Analysis 
+```{r disease analysis}
+DT::datatable(data.frame(disease_analysis_results), rownames = FALSE, 
+  colnames = c("ID", "Description", "Gene Ratio", "BG Ratio", "P-value", "Adjusted P-value", 
+  "Q-value", "Gene ID", "Count")) %>% 
+  formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
+```
 
-### Pathway enrichment analysis
-  
+### Pathway Enrichment Analysis
 ```{r pathway enrichment analysis}
-# data.frame(pathway_analysis_results) %>%
-#   kable(format = "html") %>%
-#   kable_styling()
-
 DT::datatable(data.frame(pathway_analysis_results), rownames = FALSE, 
   colnames = c("ID", "Description", "Gene Ratio", "BG Ratio", "P-value", "Adjusted P-value", 
-  "Q-value", "Gene ID")) %>% 
-  formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
-```
-
-
-### Disease ontology analysis 
-  
-```{r disease analysis}
-# data.frame(disease_analysis_results) %>%
-#   kable(format = "html") %>%
-#   kable_styling()
-
-DT::datatable(data.frame(disease_analysis_results), rownames = FALSE, 
-  colnames = c("ID", "Description", "Gene Ratio", "BG Ratio", "P-value", "Adjusted P-value", 
-  "Q-value", "Gene ID")) %>% 
-  formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
-```
-
-### Gene set enrichment analysis
-
-```{r}
-DT::datatable(data.frame(disease_analysis_results), rownames = FALSE, 
-  colnames = c("ID", "Description", "Gene Ratio", "BG Ratio", "P-value", "Adjusted P-value", 
-  "Q-value", "Gene ID")) %>% 
+  "Q-value", "Gene ID", "Count")) %>% 
   formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
 ```
 
 ### Info
+
+While the univariate analyses and machine learning model can deliver a list of proteins of interest, they are lacking any context on their functions and interactions. We therefore use enrichment analyses to infer actual knowledge from the set of proteins. The general workflow of such an approach is the systematical mapping of the proteins to their associated annotations, followed by a comparison of the distribution of terms within the protein set with a predefined background^6^.
+
+GO is a defined vocabulary that allows annotation of all genes and proteins in a commonly agreed on language regarding their role and location^7^. GO terms are categorized into three categories: biological processes, molecular functions, and cellular components. Each category contains a hierarchical structure with the terms increasing in specificity. The GO term enrichment analysis maps a list of genes to their associated GO terms and performs an enrichment test for those terms. The enrichGo function of the R package clusterProfiler was used to perform this method^8^.
+
+Disease ontology (DO) is the analogous vocabulary for human diseases providing consistent and structured terms to describe and categorize them^9^. This ontology can be of special importance to give the protein list clinical relevance. The R package DOSE was used by implementing its the enrichDO function^10^.
+
+Pathway enrichment analysis is used to determine if members of a pathway are overrepresented in the protein set. The ReactomePA package was used for this enrichment analysis and uses the Reactome database for annotation^11^. The Reactome database is manually curated and peer-reviewed pathway database that can facilitate the identification of high-order biological pathways in the data^12^.
+
 
 ## References
 
@@ -294,8 +260,17 @@ Applications in R (8^th^ ed.). Springer Science+Business Media, New York.
 
 5 Archer KJ, Kimes RV. 2008. Empirical characterization of random forest variable importance measures. Computational Statistics & Data Analysis, 52(4), 2249–2260. doi:10.1016/j.csda.2007.08.015.
 
-6
+6 Tipney H, Hunter L. 2010. An introduction to effective use of enrichment analysis software. Hum Genomics 4, 202. doi: 10.1186/1479-7364-4-3-202.
 
-7
+7 Ashburner M, Ball CA, Blake JA et al. Gene ontology: tool for the unification of biology. Nat Genet. May 2000;25(1):25-9. doi: 10.1038/75556.
 
-8
+8 Yu G, Wang L, Han Y and He Q. 2012. clusterProfiler: an R package for comparing biological themes among gene clusters. OMICS: A Journal of Integrative Biology. 16(5):284-287. doi: 10.1089/omi.2011.0118.
+
+9 Schriml, LM, Mitraka, E, Munro, J et al. 2018. Human Disease Ontology 2018 update: classification, content and workflow expansion. Nucleic acids research, 47(D1):D955–D962. doi:10.1093/nar/gky1032.
+
+10 Yu G, Wang L, Yan G, He Q. 2015. DOSE: an R/Bioconductor package for Disease Ontology Semantic and Enrichment analysis. Bioinformatics, 31(4), 608-609. doi: 10.1093/bioinformatics/btu684.
+
+11 G Yu, QY He. 2016. ReactomePA: an R/Bioconductor package for reactome pathway analysis and visualization. Molecular BioSystems, 12(2):477-479. doi: 10.1039/C5MB00663E
+
+12 Jassal B, Matthews L, Viteri G et al. 2020. The reactome pathway knowledgebase. Nucleic Acids Res. 48(D1):D498-D503. doi: 10.1093/nar/gkz1031.
+
