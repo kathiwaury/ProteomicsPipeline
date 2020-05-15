@@ -1,3 +1,4 @@
+#funtion 1
 data_check <- function(file) {
   #check file
   if (file.exists(file) == FALSE) {
@@ -96,6 +97,7 @@ data_check <- function(file) {
   data
 }
 
+#function 2
 protein_info_check <- function(file, table) {
   #check file
   if (file.exists(file) == FALSE) {
@@ -136,6 +138,7 @@ protein_info_check <- function(file, table) {
   
   #check that there is a match for every feature in the proteomics data
   features <- names(table)[3:length(table)]
+  
   if (all(features %in% data[, 1]) == FALSE) {
     stop("Protein info is not provided for all features in the data set.")
   }
@@ -149,106 +152,134 @@ protein_info_check <- function(file, table) {
   data
 }
 
-wilcox_test <- function(data, protein_info) {
+#function 3
+wilcoxon_test <- function(data, proteinInfo) {
+  
   N <- length(data)
   #create subsets of data based on two classes
-  class.1 <- levels(data[, 2])[1]
-  class.2 <- levels(data[, 2])[2]
-  subset.1 <- data[which(data[, 2] == class.1), ]
-  subset.2 <- data[which(data[, 2] == class.2), ]
+  case <- levels(data[, 2])[1]
+  control <- levels(data[, 2])[2]
+  subsetCase <- data[which(data[, 2] == case), ]
+  subsetControl <- data[which(data[, 2] == control), ]
   
   #create data frame to save p-values
-  wilcoxResults <- data.frame(Feature = names(data)[3:N], 
-                              Pvalue = rep(NA, N-2),
-                              Pvalue.adj = rep(NA, N-2),
-                              stringsAsFactors = FALSE)
+  wilcoxonResults <- data.frame(Feature = names(data)[3:N], 
+                                Pvalue = rep(NA, N-2),
+                                Pvalue.adj = rep(NA, N-2),
+                                stringsAsFactors = FALSE)
   
+  failCounter <- 0
   #loop over all features
   for (i in 3:N) {
     #check if wilcox test throws error
-    try_value <- try(wilcox.test(subset.1[, i], subset.2[, i]))
+    try_value <- try(wilcox.test(subsetCase[, i], subsetControl[, i]), silent=TRUE)
     if (class(try_value) == "try-error") {
-      print("Failed wilcox test.")
+      failCounter <- failCounter + 1
     } else {
       #perform wilcox rank-sum test 
-      w <- wilcox.test(subset.1[, i], subset.2[, i])
-      wilcoxResults$Pvalue[i-2] <- w$p.value
+      w <- wilcox.test(subsetCase[, i], subsetControl[, i])
+      #save p-value in data frame
+      wilcoxonResults$Pvalue[i-2] <- w$p.value
     }
   }
   
-  #calculate adjusted p-value for every variable in dataset
-  for (i in 1:(N-2)) {
-    wilcoxResults$Pvalue.adj <- p.adjust(wilcoxResults$Pvalue, method="fdr")
-  }
-  
-  wilcoxResults <- merge(protein_info, wilcoxResults, by.x = names(protein_info)[1], 
-                         by.y = "Feature")
-  
-  #filter for significant p-values
-  wilcoxResultsSignificant <- wilcoxResults %>% 
-    filter(Pvalue.adj < 0.05)
-  
-  if (all(is.na(wilcoxResults$Pvalue))) {
-    print("Wilcox test failed for all features.")
-  }
-  
-  #check for number of significant results
-  if (nrow(wilcoxResultsSignificant) == 0) {
-    stop("No significant features were found. Analysis is terminated.")
+  if (all(is.na(wilcoxonResults$Pvalue))) {
+    warning("Wilcoxon test failed for all features.")
   } else {
-    print(paste0(nrow(wilcoxResultsSignificant), " significant features were found."))
+    
+    if (failCounter > 0) {
+      if (failCounter == 1) {
+        print("1 Wilcoxon test failed.")
+      } else {
+        print(paste0(failCounter, " Wilcoxon tests failed."))
+      }
+      
+    }
+    
+    #calculate adjusted p-value for every variable in dataset
+    for (i in 1:(N-2)) {
+      wilcoxonResults$Pvalue.adj <- p.adjust(wilcoxonResults$Pvalue, method="fdr")
+    }
+    
+    #filter for significant p-values
+    wilcoxonResultsSignificant <- wilcoxonResults %>% 
+      filter(Pvalue.adj < 0.05)
+    
+    #check for number of significant results
+    if (nrow(wilcoxonResultsSignificant) == 0) {
+      stop("No significant features were found. Analysis is terminated.")
+    } else {
+      print(paste0(nrow(wilcoxonResultsSignificant), " significant features were found."))
+    }
   }
   
-  wilcoxResults
+  #add gene name column
+  wilcoxonResults <- merge(proteinInfo, wilcoxonResults, by.x = "Description", 
+                           by.y = "Feature")
+  
+  
+  wilcoxonResults
 }
 
-fold_change <- function(data, protein_info) {
+#function 4
+fold_change <- function(data, proteinInfo) {
+  
   N <- length(data)
   #create subsets of data based on two classes
-  class.1 <- levels(data[, 2])[1] #must be affected group
-  class.2 <- levels(data[, 2])[2] #must be control group
-  subset.1 <- data[which(data[, 2] == class.1), ]
-  subset.2 <- data[which(data[, 2] == class.2), ]
+  case <- levels(data[, 2])[1]
+  control <- levels(data[, 2])[2] 
+  subsetCase <- data[which(data[, 2] == case), ]
+  subsetControl <- data[which(data[, 2] == control), ]
   
   #create data frame to save fold changes
   foldChangeResults <- data.frame(Feature = names(data)[3:N], 
                                   foldChange = rep(NA, N-2),
                                   stringsAsFactors = FALSE)
   
+  failCounter <- 0
   #loop over all features
   for (i in 3:N) {
-    #check if wilcox test throws error
-    try_value <- try(mean(subset.1[, i]) - mean(subset.2[, i]))
-    if (class(try_value) == "try-error") {
-      print("Failed fold change calculation.")
+    #check if calculation throws error
+    try_value <- try(mean(subsetCase[, i]) - mean(subsetControl[, i]))
+    if (class(try_value) == "try-error" || is.na(try_value)) {
+      failCounter <- failCounter + 1
     } else {
       #calculate fold change
-      FC <- mean(subset.1[, i]) - mean(subset.2[, i])
+      FC <- mean(subsetCase[, i]) - mean(subsetControl[, i])
       foldChangeResults$foldChange[i-2] <- FC
     }
   }
   
-  #check results data object
-  if (nrow(foldChangeResults) == 0) {
-    print("Table of fold change results could not be created.")
+  if (all(is.na(foldChangeResults$foldChange))) {
+    warning("Fold change calculation failed for all features.")
+  } else {
+    if (failCounter > 0) {
+      if (failCounter == 1) {
+        print("1 fold change could not be calculated.")
+      } else {
+        print(paste0(failCounter, " fold changes could not be calculated."))
+      }
+      
+    }
   }
   
-  foldChangeResults <- merge(protein_info, foldChangeResults, by.x = names(protein_info)[1], 
+  foldChangeResults <- merge(proteinInfo, foldChangeResults, by.x = "Description", 
                              by.y = "Feature")
   
   foldChangeResults
 }
 
-volcano_plot <- function(wilcox_results, fold_change_results) {
+#function 5
+volcano_plot <- function(wilcoxonResults, foldChangeResults) {
+  #create data frame of combined wilcoxon and fold change results
+  results <- merge(wilcoxonResults, foldChangeResults[, -2], by.x = "Description",
+                   by.y = "Description")
   
-  #create data frame of combined wilcox and fold change results
-  results <- merge(wilcox_results, fold_change_results[, -2], by.x = names(wilcox_results)[1],
-                   by.y = names(fold_change_results)[1])
-  
+  #remove features with NAs
   results <- na.omit(results)
-  
+  #check if enough features are available
   if (nrow(results) < 20) {
-    return("Too many NA values in univariate analysis and fold change calculation.")
+    return("Too many NA values in wilcoxon results and fold change calculation.")
   }
   
   #save names and indices of interesting proteins
@@ -256,21 +287,26 @@ volcano_plot <- function(wilcox_results, fold_change_results) {
                             (results$Pvalue.adj < 0.05 & results$foldChange < -0.25))
   resultsSignificant <- results[indSignificant, ]
   
+  #create plot
   plot <- ggplot() +
+    #all data points
     geom_point(data = results, mapping = aes(x = foldChange, y = -log10(Pvalue.adj))) +
+    #significant data points
     geom_point(data = resultsSignificant, mapping =
                  aes(x = foldChange, y = -log10(Pvalue.adj), name = Gene), color = "dodgerblue4") +
-    # geom_text_repel(data = resultsSignificant, mapping = aes(x = foldChange, y = -log10(Pvalue.adj), label = Gene), check_overlap = TRUE) +
+    #add threshold lines
     geom_vline(xintercept = c(-0.25, 0.25), linetype = "dotted", size = 1) +
     geom_hline(yintercept = -log10(0.05), linetype = "dotted", size = 1) +
     labs(x = "Log(2) fold change", y = "-Log10(adjusted p-value)",
          title = "Volcano plot of P-value and fold change")
+  
   #make plot interactive
   interactivePlot <- ggplotly(plot)
   
   interactivePlot
 }
 
+#function 6
 random_forest <- function(data) {
   #save length of dataset
   N <- length(data)
@@ -279,7 +315,7 @@ random_forest <- function(data) {
   class.2 <- levels(factor(data[, 2]))[2]
   
   #set number of iterations and number of trees per random forest
-  M <- 20
+  M <- 2
   trees <- 6000
   
   #initiate empty list
@@ -318,6 +354,7 @@ random_forest <- function(data) {
   randomForestResults
 }
 
+#function 7
 protein_ranking <- function(random_forest_results, protein_info) {
   
   # initiate empty vector to save Gini Index results
@@ -342,6 +379,7 @@ protein_ranking <- function(random_forest_results, protein_info) {
   meanFeatureImportance
 }
 
+#function 8
 protein_selection <- function(proteinsRanked, wilcoxResults) {
   
   wilcoxResultsSignificant <- wilcoxResults %>% 
@@ -366,15 +404,15 @@ protein_selection <- function(proteinsRanked, wilcoxResults) {
   
   N <- nrow(proteinsRankedSignificant)
   #if number of proteins is too low, expand with Wilcoxon results
-  if (N < 30) {
-    if (nrow(wilcoxResultsSignificant) >= (30 - N)) {
+  if (N < 50) {
+    if (nrow(wilcoxResultsSignificant) >= (50 - N)) {
       #filter wilcoxon resuls for genes not yet in ranked protein list
       uniqueInds <- which(!(wilcoxResultsSignificant$Gene %in% proteinsRankedSignificant$Gene))
       wilcoxUnique <- wilcoxResultsSignificant[uniqueInds, ]
       #add unique wilcox proteins to table
-      proteinsRankedSignificant <- rbind(proteinsRankedSignificant, wilcoxUnique[1:(30-N), ])
+      proteinsRankedSignificant <- rbind(proteinsRankedSignificant, wilcoxUnique[1:(50-N), ])
     } else {
-      stop("Less than 30 significant proteins found. Analysis is terminated.")
+      stop("Less than 50 significant proteins found. Analysis is terminated.")
     }
   }
   
@@ -388,6 +426,32 @@ protein_selection <- function(proteinsRanked, wilcoxResults) {
   proteinsRankedSignificant
 }
 
-uniprot_analysis <- function(protein_ID_list) {
-  protein_ID_list
+#function 9
+protein_ID <- function(proteinSetUnique) {
+  proteinID <- clusterProfiler::bitr(proteinSetUnique$Gene, fromType = "SYMBOL",
+      toType = "ENTREZID", OrgDb = "org.Hs.eg.db")
+  
+  proteinID
+}
+
+#function 10
+GO_enrichment_analysis <- function(proteinID) {
+  GOAnalysisResults <- clusterProfiler::enrichGO(gene = proteinID$ENTREZID,
+    OrgDb = "org.Hs.eg.db", keyType = "ENTREZID")
+  
+  GOAnalysisResults
+}
+
+#function 11
+DO_enrichment_analysis <- function(proteinID) {
+  DOAnalysisResults <- DOSE::enrichDO(proteinID$ENTREZID, readable = TRUE)
+  
+  DOAnalysisResults
+}
+
+#function 12
+pathway_analysis <- function(proteinID) {
+  pathwayAnalysisResults <- enrichPathway(proteinID$ENTREZID, organism = "human", readable = TRUE)
+  
+  pathwayAnalysisResults
 }
