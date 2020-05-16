@@ -9,7 +9,7 @@ if(length(newPackages) > 0) {
 }
 
 #install and load missing packages from BioConductor
-packagesListBC <- c("clusterProfiler",  "DOSE", "org.Hs.eg.db",  "ReactomePA")
+packagesListBC <- c("clusterProfiler",  "DOSE", "org.Hs.eg.db",  "ReactomePA", "enrichplot")
 newPackagesBC <- packagesListBC[!(packagesListBC %in% installed.packages()[,"Package"])]
 if(length(newPackagesBC) > 0) {
   BiocManager::install(newPackagesBC)
@@ -22,6 +22,7 @@ library(clusterProfiler)
 library(dplyr)
 library(DOSE)
 library(DT)
+library(enrichplot)
 library(ggplot2)
 library(kableExtra)
 library(knitr)
