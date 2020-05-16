@@ -14,6 +14,7 @@ knitr::opts_chunk$set(echo = FALSE)
 ```{r, warning=FALSE, message=FALSE}
 library(dplyr)
 library(drake)
+library(enrichplot)
 library(DT)
 library(kableExtra)
 library(knitr)
@@ -27,9 +28,13 @@ loadd(plotResults)
 loadd(randomForestResults)
 loadd(proteinsRanked)
 loadd(proteinSetUnique)
+loadd(proteinID)
 loadd(GOAnalysisResults)
 loadd(DOAnalysisResults)
 loadd(pathwayAnalysisResults)
+loadd(GOAnalysisPlot)
+# loadd(DOAnalysisPlot)
+# loadd(pathwayAnalysisPlot)
 ```
 
 ## Data
@@ -149,10 +154,12 @@ DT::datatable(proteinsRanked, rownames = FALSE) %>%
 
 ### Protein Set Selection
 
-`r nrow(proteinSetUnique)` were selected for further analysis.
+`r nrow(proteinSetUnique)` were selected. Out of those **`r nrow(proteinID)`** could be mapped to their unique Entrez ID and will be used for the enrichment analyses.
+
 ```{r proteins selected importance table}
-DT::datatable(proteinSetUnique, rownames = FALSE)
+DT::datatable(proteinID, rownames = FALSE, escape = FALSE)
 ```
+
 
 ### Highest Ranking Proteins
 ```{r proteins selected importance plot}
@@ -203,37 +210,80 @@ The selection of proteins that are analysed further depends on their mean decrea
 
 ## Protein Set Analysis {.tabset}
 
-### Gene Ontology Term Analysis
-```{r GO term analysis}
+### Gene Ontology Term Analysis {.tabset}
+
+#### Table
+```{r GO term analysis table}
 DT::datatable(as.data.frame(GOAnalysisResults), rownames = FALSE, 
   colnames = c("ID", "Description",   "Gene Ratio", "BG Ratio", "P-value", "Adjusted P-value", 
   "Q-value", "Gene ID", "Count")) %>% 
   formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
 ```
 
-### Disease Ontology Term Analysis 
-```{r disease analysis}
+#### Bar Plot
+```{r GO term analysis plot}
+barplot(GOAnalysisResults)
+```
+
+#### Enrichment Map
+```{r GO term analysis map}
+emapplot(GOAnalysisResults)
+```
+
+
+### Disease Ontology Term Analysis {.tabset}
+
+#### Table
+```{r DO term analysis table}
 DT::datatable(data.frame(DOAnalysisResults), rownames = FALSE, 
   colnames = c("ID", "Description", "Gene Ratio", "BG Ratio", "P-value", "Adjusted P-value", 
   "Q-value", "Gene ID", "Count")) %>% 
   formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
 ```
 
-### Pathway Enrichment Analysis
-```{r pathway enrichment analysis}
+#### Bar Plot
+```{r DO term analysis plot}
+barplot(DOAnalysisResults)
+```
+
+#### Enrichment Map
+```{r DO term analysis map}
+emapplot(DOAnalysisResults)
+```
+
+### Pathway Enrichment Analysis {.tabset}
+
+#### Table
+```{r pathway enrichment analysis table}
 DT::datatable(data.frame(pathwayAnalysisResults), rownames = FALSE, 
   colnames = c("ID", "Description", "Gene Ratio", "BG Ratio", "P-value", "Adjusted P-value", 
   "Q-value", "Gene ID", "Count")) %>% 
   formatRound(c("pvalue", "p.adjust", "qvalue"), 6)
 ```
 
+#### Bar Plot
+```{r pathway enrichment analysis plot}
+barplot(pathwayAnalysisResults)
+```
+
+#### Enrichment Map
+```{r pathway enrichment analysis map}
+emapplot(pathwayAnalysisResults)
+```
+
 ### Info
 
 While the univariate analyses and machine learning model can deliver a list of proteins of interest, they are lacking any context on their functions and interactions. We therefore use enrichment analyses to infer actual knowledge from the set of proteins. The general workflow of such an approach is the systematical mapping of the proteins to their associated annotations, followed by a comparison of the distribution of terms within the protein set with a predefined background^6^.
 
+**Gene Ontology Term Enrichment Analysis**
+
 GO is a defined vocabulary that allows annotation of all genes and proteins in a commonly agreed on language regarding their role and location^7^. GO terms are categorized into three categories: biological processes, molecular functions, and cellular components. Each category contains a hierarchical structure with the terms increasing in specificity. The GO term enrichment analysis maps a list of genes to their associated GO terms and performs an enrichment test for those terms. The enrichGo function of the R package clusterProfiler was used to perform this method^8^.
 
+**Disease Ontology Term Enrichment Analysis**
+
 Disease ontology (DO) is the analogous vocabulary for human diseases providing consistent and structured terms to describe and categorize them^9^. This ontology can be of special importance to give the protein list clinical relevance. The R package DOSE was used by implementing its the enrichDO function^10^.
+
+**Pathway Enrichment Analysis**
 
 Pathway enrichment analysis is used to determine if members of a pathway are overrepresented in the protein set. The ReactomePA package was used for this enrichment analysis and uses the Reactome database for annotation^11^. The Reactome database is manually curated and peer-reviewed pathway database that can facilitate the identification of high-order biological pathways in the data^12^.
 
@@ -246,12 +296,12 @@ Publishing, Baltimore, Maryland.
 2 Witten DM, Tibshirani R. 2007. A comparison of fold-change and the t-statistic
 for microarray data analysis. Stanford University. 1-13.
 
-3 Doyle M. 2019 Visualization of RNA-Seq results with Volcano Plot (Galaxy Training Materials). /training-material/topics/transcriptomics/tutorials/rna-seq-viz-with-volcanoplot/tutorial.html Online; accessed Fri Apr 17 2020
+3 Doyle M. 2019 Visualization of RNA-Seq results with Volcano Plot (Galaxy Training Materials). https://galaxyproject.github.io/training-material/topics/transcriptomics/tutorials/rna-seq-viz-with-volcanoplot/tutorial.html. Accessed: 17th April 2020.
 
 4 James G, Witten D, Hastie T, Tibshirani R. 2013. An Introduction to Statistical Learning: with
 Applications in R (8^th^ ed.). Springer Science+Business Media, New York.
 
-5 Archer KJ, Kimes RV. 2008. Empirical characterization of random forest variable importance measures. Computational Statistics & Data Analysis, 52(4), 2249–2260. doi:10.1016/j.csda.2007.08.015.
+5 Archer KJ, Kimes RV. 2008. Empirical characterization of random forest variable importance measures. Computational Statistics & Data Analysis, 52(4), 2249–2260. doi: 10.1016/j.csda.2007.08.015.
 
 6 Tipney H, Hunter L. 2010. An introduction to effective use of enrichment analysis software. Hum Genomics 4, 202. doi: 10.1186/1479-7364-4-3-202.
 
@@ -259,7 +309,7 @@ Applications in R (8^th^ ed.). Springer Science+Business Media, New York.
 
 8 Yu G, Wang L, Han Y and He Q. 2012. clusterProfiler: an R package for comparing biological themes among gene clusters. OMICS: A Journal of Integrative Biology. 16(5):284-287. doi: 10.1089/omi.2011.0118.
 
-9 Schriml, LM, Mitraka, E, Munro, J et al. 2018. Human Disease Ontology 2018 update: classification, content and workflow expansion. Nucleic acids research, 47(D1):D955–D962. doi:10.1093/nar/gky1032.
+9 Schriml, LM, Mitraka, E, Munro, J et al. 2018. Human Disease Ontology 2018 update: classification, content and workflow expansion. Nucleic acids research, 47(D1):D955–D962. doi: 10.1093/nar/gky1032.
 
 10 Yu G, Wang L, Yan G, He Q. 2015. DOSE: an R/Bioconductor package for Disease Ontology Semantic and Enrichment analysis. Bioinformatics, 31(4), 608-609. doi: 10.1093/bioinformatics/btu684.
 
