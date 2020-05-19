@@ -32,9 +32,6 @@ loadd(proteinID)
 loadd(GOAnalysisResults)
 loadd(DOAnalysisResults)
 loadd(pathwayAnalysisResults)
-loadd(GOAnalysisPlot)
-# loadd(DOAnalysisPlot)
-# loadd(pathwayAnalysisPlot)
 ```
 
 ## Data
@@ -55,7 +52,7 @@ DT::datatable(info, options = list(dom = 't', ordering = FALSE), colnames = rep(
 
 ## Univariate analysis {.tabset}
 
-### Wilcoxon Rank-sum Test
+### Wilcoxon Rank-Sum Test
 ```{r wilcoxon results NA check}
 
 #check for NA values in data frame
@@ -143,7 +140,7 @@ The classification models produced an average accuracy of **`r round(mean(accura
 ```{r random forest accuracy plot}
 ggplot(as.data.frame(accuracy), aes(x="", y = accuracy)) + 
   geom_boxplot(colour = "black", fill = "dodgerblue4") +
-  labs(x = "", y = "accuracy", title = "Classification accuracy of Random Forest models")
+  labs(x = "", y = "Accuracy", title = "Classification accuracy of Random Forest models")
 ```
 
 ### Protein Ranking
@@ -151,15 +148,6 @@ ggplot(as.data.frame(accuracy), aes(x="", y = accuracy)) +
 DT::datatable(proteinsRanked, rownames = FALSE) %>% 
   formatRound("Importance", 6)
 ```
-
-### Protein Set Selection
-
-`r nrow(proteinSetUnique)` were selected. Out of those **`r nrow(proteinID)`** could be mapped to their unique Entrez ID and will be used for the enrichment analyses.
-
-```{r proteins selected importance table}
-DT::datatable(proteinID, rownames = FALSE, escape = FALSE)
-```
-
 
 ### Highest Ranking Proteins
 ```{r proteins selected importance plot}
@@ -175,6 +163,14 @@ ggplot(topTenGenes, aes(x = topTenGenes[, 1], y = topTenGenes[, 2])) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     labs(x = "Genes", y = "Importance", title = 
       "Genes with highest average importance across all Random Forest models")
+```
+
+### Protein Set Selection
+
+`r nrow(proteinSetUnique)` proteins were selected. Out of those **`r nrow(proteinID)`** could be mapped to their unique Entrez ID and were used for the enrichment analyses. 
+
+```{r proteins selected importance table}
+DT::datatable(proteinID, rownames = FALSE)
 ```
 
 ### Info 
@@ -208,7 +204,7 @@ The ranking of the proteins is based on all 20 random forest models fitted by av
 The selection of proteins that are analysed further depends on their mean decrease in Gini index relative to the feature with the highest importance. Every variable with an importance measure of at least one third of the highest ranking protein is included. If less than 50 proteins were selected by this measurement, the list is expanded using the results of the Wilcoxon test. Duplicates of the same protein are removed at this stage.
 
 
-## Protein Set Analysis {.tabset}
+## Enrichment Analysis {.tabset}
 
 ### Gene Ontology Term Analysis {.tabset}
 
@@ -222,12 +218,17 @@ DT::datatable(as.data.frame(GOAnalysisResults), rownames = FALSE,
 
 #### Bar Plot
 ```{r GO term analysis plot}
-barplot(GOAnalysisResults)
+if (nrow(GOAnalysisResults) > 0) {
+  barplot(GOAnalysisResults)
+}
+
 ```
 
 #### Enrichment Map
 ```{r GO term analysis map}
-emapplot(GOAnalysisResults)
+if (nrow(GOAnalysisResults) > 0) {
+  emapplot(GOAnalysisResults)
+}
 ```
 
 
@@ -243,12 +244,16 @@ DT::datatable(data.frame(DOAnalysisResults), rownames = FALSE,
 
 #### Bar Plot
 ```{r DO term analysis plot}
-barplot(DOAnalysisResults)
+if (nrow(DOAnalysisResults) > 0) {
+  barplot(DOAnalysisResults)
+}
 ```
 
 #### Enrichment Map
 ```{r DO term analysis map}
-emapplot(DOAnalysisResults)
+if (nrow(DOAnalysisResults) > 0) {
+  emapplot(DOAnalysisResults)
+}
 ```
 
 ### Pathway Enrichment Analysis {.tabset}
@@ -263,12 +268,16 @@ DT::datatable(data.frame(pathwayAnalysisResults), rownames = FALSE,
 
 #### Bar Plot
 ```{r pathway enrichment analysis plot}
-barplot(pathwayAnalysisResults)
+if (nrow(pathwayAnalysisResults) > 0) {
+  barplot(pathwayAnalysisResults)
+}
 ```
 
 #### Enrichment Map
 ```{r pathway enrichment analysis map}
-emapplot(pathwayAnalysisResults)
+if (nrow(pathwayAnalysisResults) > 0) {
+  emapplot(pathwayAnalysisResults)
+}
 ```
 
 ### Info
