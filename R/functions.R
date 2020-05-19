@@ -1,10 +1,11 @@
 #funtion 1
 data_check <- function(file) {
-  #check file
+  #check file exists
   if (file.exists(file) == FALSE) {
     stop("File wasn't loaded. Couldn't find a file of that name.")
   }
   
+  #check file type
   if (reader::get.ext(file) != "csv") {
     stop("File wasn't loaded. The file needs to be in csv format.")
   }
@@ -27,27 +28,21 @@ data_check <- function(file) {
   if (N <= 3) {
     stop("Less than 4 columns detected.")
   }
+  #rename first two columns
+  names(data)[1] <- "SampleID"
+  names(data)[2] <- "Class"
   
-  #check correct type of sample ID columns
-  if (typeof(data[, 1]) != "character")  {
-    stop("The first column must be of type character.")
-  }
-  
-  #check correct type of class column
-  if (typeof(data[, 2]) != "character") {
-    stop("The second column must be of type character.")
+  #sample ID is unique
+  if (any(duplicated(data$SampleID) == TRUE)) {
+    stop("Sample description is not unique.")
   }
   
   #check correct type of proteomics data
   for (i in 3:N) {
     if (typeof(data[, i]) != "integer" && typeof(data[, i]) != "double") {
-      stop("The columns are not of the required type.")
+      stop("The proteomics columns are not of the numeric type.")
     }
   }
-  
-  #rename first two columns
-  names(data)[1] <- "SampleID"
-  names(data)[2] <- "Class"
   
   #convert class column into factor
   data$Class <- factor(data$Class)
@@ -311,42 +306,47 @@ random_forest <- function(data) {
   #save length of dataset
   N <- length(data)
   #create subsets of data based on two classes
-  class.1 <- levels(factor(data[, 2]))[1]
-  class.2 <- levels(factor(data[, 2]))[2]
+  case <- levels(factor(data[, 2]))[1]
+  control <- levels(factor(data[, 2]))[2]
   
   #set number of iterations and number of trees per random forest
-  M <- 2
-  trees <- 6000
+  M <- 20
+  Ntrees <- 6000
   
   #initiate empty list
   randomForestResults <- list()
   
   for (i in 1:M){
-    #create training (70%) and test (30%) data split 
+    #create train (70%) and test (30%) data split 
     set.seed(i)
     trainInds <- data[, 2] %>%
       caret::createDataPartition(p = 0.7, list = FALSE)
     trainData <- data[trainInds, ]
-    
-    #bootstrap dataset for balanced classes by sampling with replacement 100 times
-    set.seed(1)
-    indsClass.1 <- sample(which(trainData[, 2] == class.1), 100, replace = TRUE)
-    set.seed(1)
-    indsClass.2 <- sample(which(trainData[, 2] == class.2), 100, replace = TRUE)
-    #combine bootstraped dataset
-    trainData <- rbind(trainData[indsClass.1, ], trainData[indsClass.2, ])
     testData <- data[-trainInds, ]
+    
+    #bootstrap dataset for balanced classes by sampling both classes with replacement 100 times
+    set.seed(1)
+    indsCase <- sample(which(trainData[, 2] == case), 100, replace = TRUE)
+    set.seed(1)
+    indsControl <- sample(which(trainData[, 2] == control), 100, replace = TRUE)
+    #combine bootstraped dataset
+    trainData <- rbind(trainData[indsCase, ], trainData[indsControl, ])
+    
+    #create predictor and outcome sets for train and test data
     trainDataVariables <- as.matrix(trainData[, -c(1:2)])
     trainDataClasses <- as.factor(trainData[, 2])
     testDataVariables <- as.matrix(testData[, -c(1:2)])
     testDataClasses <- as.factor(testData[, 2])
     
     #perform random forest
-    fit.RF <- randomForest(x = trainDataVariables, y = trainDataClasses, 
-                           xtest = testDataVariables, ytest = testDataClasses, ntree = trees)
-    randomForestResults[[length(randomForestResults)+1]] <- fit.RF
+    fitRF <- randomForest(x = trainDataVariables, y = trainDataClasses, 
+                          xtest = testDataVariables, ytest = testDataClasses, ntree = Ntrees)
+    
+    #save fitted model into results list
+    randomForestResults[[length(randomForestResults)+1]] <- fitRF
   }
   
+  #check for empty list
   if (length(randomForestResults) == 0){
     stop("Random Forest could not be performed.")
   } 
@@ -355,71 +355,85 @@ random_forest <- function(data) {
 }
 
 #function 7
-protein_ranking <- function(random_forest_results, protein_info) {
+protein_ranking <- function(randomForestResults, proteinInfo) {
   
   # initiate empty vector to save Gini Index results
   featureImportance <- vector()
   
-  for (i in 1:length(random_forest_results)) {
+  for (i in 1:length(randomForestResults)) {
     #subset one random forest object
-    fit.RF <- random_forest_results[[i]]
+    fitRF <- randomForestResults[[i]]
     #extract feature importance ranking and append to results vector
-    featureImportance <- cbind(featureImportance, importance(fit.RF))
+    featureImportance <- cbind(featureImportance, importance(fitRF))
   }
-  #calculate mean MeanDecreaseGini for every feature
+  
+  #calculate mean importance of all models for every feature
   meanFeatureImportance <- data.frame("Importance" = apply(featureImportance, 1, mean)) %>%
-    tibble::rownames_to_column("Feature") 
-  #add gene name to data frame 
-  meanFeatureImportance <- merge(protein_info, meanFeatureImportance, by.x = names(protein_info)[1], 
-                                 by.y = "Feature") 
-  #sort by mean Gini Index
-  meanFeatureImportance <- arrange(meanFeatureImportance, desc(Importance)) #%>%
-  #tibble::rowid_to_column("Rank")
+    tibble::rownames_to_column("Feature")
+  
+  #add gene name to data frame
+  meanFeatureImportance <- merge(proteinInfo, meanFeatureImportance, by.x = "Description",
+                                 by.y = "Feature")
+  
+  #sort by importance
+  meanFeatureImportance <- arrange(meanFeatureImportance, desc(Importance))
   
   meanFeatureImportance
 }
 
 #function 8
-protein_selection <- function(proteinsRanked, wilcoxResults) {
+protein_selection <- function(proteinsRanked, wilcoxonResults) {
   
-  wilcoxResultsSignificant <- wilcoxResults %>% 
+  wilcoxonResultsSignificant <- wilcoxonResults %>% 
+    #remove failed wilcoxon tests
+    na.omit(wilcoxonResults) %>%
     #filter significant p-values
-    filter(Pvalue.adj < 0.05) %>% arrange(Pvalue.adj) %>%
+    filter(Pvalue.adj < 0.05) %>% 
+    #order by p-value
+    arrange(Pvalue.adj) %>%
     #remove duplicate genes
     distinct(Gene, .keep_all = TRUE) %>%
     #keep first two columns
-    dplyr::select(names(wilcoxResults)[1], names(wilcoxResults)[2])
+    dplyr::select("Description", "Gene")
   
   #calculate highest importance
   maxImportance <- proteinsRanked$Importance[1]
-  #calculate minimum importnace realtive to maximum importance
+  #calculate importance threshold relative to maximum importance
   minImportance <- maxImportance * 0.33
+  
   proteinsRankedSignificant <- proteinsRanked %>% 
-    #filter proteins with high enough importance
+    #filter proteins above importance threshold
     filter(Importance > minImportance) %>%
     #remove duplicate genes
     distinct(Gene, .keep_all = TRUE) %>%
     #keep first two columns
-    dplyr::select(names(proteinsRanked)[1], names(proteinsRanked)[2])
+    dplyr::select("Description", "Gene")
   
   N <- nrow(proteinsRankedSignificant)
-  #if number of proteins is too low, expand with Wilcoxon results
+  
+  #add Source column and set source as random forest
+  proteinsRankedSignificant$Source <- rep("Random Forest", N)
+  
+  #if number of proteins is too low, expand with wilcoxon results
   if (N < 50) {
-    if (nrow(wilcoxResultsSignificant) >= (50 - N)) {
+    if (nrow(wilcoxonResultsSignificant) >= (50 - N)) {
       #filter wilcoxon resuls for genes not yet in ranked protein list
-      uniqueInds <- which(!(wilcoxResultsSignificant$Gene %in% proteinsRankedSignificant$Gene))
-      wilcoxUnique <- wilcoxResultsSignificant[uniqueInds, ]
+      uniqueInds <- which(!(wilcoxonResultsSignificant$Gene %in% proteinsRankedSignificant$Gene))
+      wilcoxonUnique <- wilcoxonResultsSignificant[uniqueInds, ]
+      #set source as wilcoxon test
+      wilcoxonUnique$Source <- rep("Wilcoxon Test", nrow(wilcoxonUnique))
       #add unique wilcox proteins to table
-      proteinsRankedSignificant <- rbind(proteinsRankedSignificant, wilcoxUnique[1:(50-N), ])
+      proteinsRankedSignificant <- rbind(proteinsRankedSignificant, wilcoxonUnique[1:(50-N), ])
     } else {
       stop("Less than 50 significant proteins found. Analysis is terminated.")
     }
   }
   
   #check for only unique genes
-  if (any(duplicated(proteinsRankedSignificant$Gene) == TRUE)) {
+  if (any(duplicated(correctDuplicateCheck$Gene) == TRUE)) {
     proteinsRankedSignificant <- distinct(proteinsRankedSignificant, Gene, .keep_all = TRUE)
   }
+  
   #add rank to data frame
   proteinsRankedSignificant <- tibble::rowid_to_column(proteinsRankedSignificant, "Rank")
   
@@ -428,16 +442,20 @@ protein_selection <- function(proteinsRanked, wilcoxResults) {
 
 #function 9
 protein_ID <- function(proteinSetUnique) {
-  proteinID <- clusterProfiler::bitr(proteinSetUnique$Gene, fromType = "SYMBOL",
-      toType = "ENTREZID", OrgDb = "org.Hs.eg.db")
+  #extract Entrez ID for every gene symbol in protein list
+  entrezList <- clusterProfiler::bitr(proteinSetUnique$Gene, fromType = "SYMBOL", toType = 
+                                        c("ENTREZID"), OrgDb = "org.Hs.eg.db")
+  mergedList <- merge(proteinSetUnique, entrezList, by.x = "Gene", by.y = "SYMBOL")
+  mergedList <- mergedList[, c("Rank", "Gene", "Description", "Source", "ENTREZID")] %>% 
+    arrange(Rank)
   
-  proteinID
+  mergedList
 }
 
 #function 10
 GO_enrichment_analysis <- function(proteinID) {
   GOAnalysisResults <- clusterProfiler::enrichGO(gene = proteinID$ENTREZID,
-    OrgDb = "org.Hs.eg.db", keyType = "ENTREZID")
+    OrgDb = "org.Hs.eg.db", keyType = "ENTREZID", readable = TRUE)
   
   GOAnalysisResults
 }
@@ -451,7 +469,9 @@ DO_enrichment_analysis <- function(proteinID) {
 
 #function 12
 pathway_analysis <- function(proteinID) {
-  pathwayAnalysisResults <- enrichPathway(proteinID$ENTREZID, organism = "human", readable = TRUE)
+  pathwayAnalysisResults <- ReactomePA::enrichPathway(proteinID$ENTREZID, 
+    organism = "human", readable = TRUE)
   
   pathwayAnalysisResults
 }
+
