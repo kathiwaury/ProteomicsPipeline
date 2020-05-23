@@ -430,7 +430,7 @@ protein_selection <- function(proteinsRanked, wilcoxonResults) {
   }
   
   #check for only unique genes
-  if (any(duplicated(correctDuplicateCheck$Gene) == TRUE)) {
+  if (any(duplicated(proteinsRankedSignificant$Gene) == TRUE)) {
     proteinsRankedSignificant <- distinct(proteinsRankedSignificant, Gene, .keep_all = TRUE)
   }
   
